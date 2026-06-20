@@ -34,8 +34,11 @@ async function capture(request: Request, splat: string | undefined) {
     null;
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as unknown as {
+    from: (t: string) => { insert: (row: Record<string, unknown>) => Promise<unknown> };
+  };
 
-  await supabaseAdmin.from("captured_requests").insert({
+  await db.from("captured_requests").insert({
     path,
     method: request.method,
     query_params: query,
