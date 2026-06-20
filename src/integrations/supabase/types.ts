@@ -14,7 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      captured_requests: {
+        Row: {
+          body: string | null
+          content_type: string | null
+          created_at: string
+          headers: Json
+          id: string
+          method: string
+          path: string
+          query_params: Json
+          source_ip: string | null
+        }
+        Insert: {
+          body?: string | null
+          content_type?: string | null
+          created_at?: string
+          headers?: Json
+          id?: string
+          method: string
+          path: string
+          query_params?: Json
+          source_ip?: string | null
+        }
+        Update: {
+          body?: string | null
+          content_type?: string | null
+          created_at?: string
+          headers?: Json
+          id?: string
+          method?: string
+          path?: string
+          query_params?: Json
+          source_ip?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
