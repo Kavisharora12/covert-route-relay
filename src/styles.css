@@ -103,6 +103,15 @@
   --sidebar-ring: oklch(0.704 0.04 256.788);
 }
 
+:root {
+  --method-get: oklch(0.62 0.16 250);
+  --method-post: oklch(0.66 0.17 150);
+  --method-put: oklch(0.7 0.16 70);
+  --method-patch: oklch(0.62 0.15 300);
+  --method-delete: oklch(0.62 0.2 25);
+  --method-foreground: oklch(0.99 0 0);
+}
+
 .dark {
   --background: oklch(0.129 0.042 264.695);
   --foreground: oklch(0.984 0.003 247.858);
