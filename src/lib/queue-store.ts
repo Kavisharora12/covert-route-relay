@@ -1,21 +1,32 @@
+export type FileOperation = "read" | "write" | "delete";
+
 export interface FileRequest {
   id: string;
   path: string;
+  operation: FileOperation;
+  content?: string;
   requestedAt: string;
   status: "pending" | "done" | "error";
+  result?: string;
 }
 
 const queue: FileRequest[] = [];
 
-export function enqueue(path: string): FileRequest {
+export function enqueue(
+  path: string,
+  operation: FileOperation,
+  content?: string
+): FileRequest {
   const req: FileRequest = {
     id: Math.random().toString(36).slice(2),
     path,
+    operation,
+    content,
     requestedAt: new Date().toISOString(),
     status: "pending",
   };
   queue.unshift(req);
-  if (queue.length > 20) queue.length = 20;
+  if (queue.length > 50) queue.length = 50;
   return req;
 }
 
@@ -27,17 +38,19 @@ export function getAll(): FileRequest[] {
   return queue;
 }
 
-export function markDone(id: string): boolean {
+export function markDone(id: string, result?: string): boolean {
   const r = queue.find((x) => x.id === id);
   if (!r) return false;
   r.status = "done";
+  r.result = result;
   return true;
 }
 
-export function markError(id: string): boolean {
+export function markError(id: string, result?: string): boolean {
   const r = queue.find((x) => x.id === id);
   if (!r) return false;
   r.status = "error";
+  r.result = result;
   return true;
 }
 

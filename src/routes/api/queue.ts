@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { enqueue, getPending, getAll, markDone, markError, clearAll } from "@/lib/queue-store";
+import { enqueue, getPending, getAll, markDone, markError, clearAll, FileOperation } from "@/lib/queue-store";
 import { addEntry } from "@/lib/ingest-store";
 
 const cors = {
@@ -15,14 +15,15 @@ function json(data: unknown, status = 200) {
   });
 }
 
+const VALID_OPS: FileOperation[] = ["read", "write", "delete"];
+
 export const Route = createFileRoute("/api/queue")({
   server: {
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: cors }),
 
-      // Website calls this to add a file path to the queue
       POST: async ({ request }) => {
-        let body: { path?: string };
+        let body: { path?: string; operation?: string; content?: string };
         try {
           body = await request.json();
         } catch {
@@ -31,11 +32,17 @@ export const Route = createFileRoute("/api/queue")({
         if (!body?.path || typeof body.path !== "string") {
           return json({ success: false, error: "Missing 'path'" }, 400);
         }
-        const req = enqueue(body.path.trim());
+        const operation = (body.operation ?? "read") as FileOperation;
+        if (!VALID_OPS.includes(operation)) {
+          return json({ success: false, error: `Invalid operation. Must be one of: ${VALID_OPS.join(", ")}` }, 400);
+        }
+        if (operation === "write" && typeof body.content !== "string") {
+          return json({ success: false, error: "Write operation requires 'content'" }, 400);
+        }
+        const req = enqueue(body.path.trim(), operation, body.content);
         return json({ success: true, request: req });
       },
 
-      // Agent calls this to get pending requests
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const pendingOnly = url.searchParams.get("pending") !== "false";
@@ -43,9 +50,8 @@ export const Route = createFileRoute("/api/queue")({
         return json({ success: true, requests: items });
       },
 
-      // Agent calls this to submit a completed file read
       PATCH: async ({ request }) => {
-        let body: { id?: string; content?: string; filename?: string; error?: string };
+        let body: { id?: string; content?: string; filename?: string; error?: string; result?: string };
         try {
           body = await request.json();
         } catch {
@@ -56,20 +62,30 @@ export const Route = createFileRoute("/api/queue")({
         }
 
         if (body.error) {
-          markError(body.id);
+          markError(body.id, body.error);
           return json({ success: true, status: "error" });
         }
 
-        if (typeof body.content !== "string") {
-          return json({ success: false, error: "Missing 'content'" }, 400);
+        const allItems = getAll();
+        const req = allItems.find((r) => r.id === body.id);
+        if (!req) {
+          return json({ success: false, error: "Request not found" }, 404);
         }
 
-        markDone(body.id);
-        addEntry({
-          filename: body.filename ?? body.id,
-          content: body.content,
-          sizeBytes: new TextEncoder().encode(body.content).length,
-        });
+        if (req.operation === "read") {
+          if (typeof body.content !== "string") {
+            return json({ success: false, error: "Missing 'content' for read result" }, 400);
+          }
+          markDone(body.id, "File read successfully");
+          addEntry({
+            filename: body.filename ?? body.id,
+            content: body.content,
+            sizeBytes: new TextEncoder().encode(body.content).length,
+          });
+        } else {
+          markDone(body.id, body.result ?? `${req.operation} completed`);
+        }
+
         return json({ success: true, status: "done" });
       },
 
