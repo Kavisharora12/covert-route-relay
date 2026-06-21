@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiQueueRouteImport } from './routes/api/queue'
 import { Route as ApiIngestRouteImport } from './routes/api/ingest'
 import { Route as ApiFilesReadRouteImport } from './routes/api/files/read'
 import { Route as ApiPublicCatchSplatRouteImport } from './routes/api/public/catch.$'
@@ -17,6 +18,11 @@ import { Route as ApiPublicCatchSplatRouteImport } from './routes/api/public/cat
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiQueueRoute = ApiQueueRouteImport.update({
+  id: '/api/queue',
+  path: '/api/queue',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiIngestRoute = ApiIngestRouteImport.update({
@@ -38,12 +44,14 @@ const ApiPublicCatchSplatRoute = ApiPublicCatchSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/ingest': typeof ApiIngestRoute
+  '/api/queue': typeof ApiQueueRoute
   '/api/files/read': typeof ApiFilesReadRoute
   '/api/public/catch/$': typeof ApiPublicCatchSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/ingest': typeof ApiIngestRoute
+  '/api/queue': typeof ApiQueueRoute
   '/api/files/read': typeof ApiFilesReadRoute
   '/api/public/catch/$': typeof ApiPublicCatchSplatRoute
 }
@@ -51,18 +59,30 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/ingest': typeof ApiIngestRoute
+  '/api/queue': typeof ApiQueueRoute
   '/api/files/read': typeof ApiFilesReadRoute
   '/api/public/catch/$': typeof ApiPublicCatchSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/ingest' | '/api/files/read' | '/api/public/catch/$'
+  fullPaths:
+    | '/'
+    | '/api/ingest'
+    | '/api/queue'
+    | '/api/files/read'
+    | '/api/public/catch/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/ingest' | '/api/files/read' | '/api/public/catch/$'
+  to:
+    | '/'
+    | '/api/ingest'
+    | '/api/queue'
+    | '/api/files/read'
+    | '/api/public/catch/$'
   id:
     | '__root__'
     | '/'
     | '/api/ingest'
+    | '/api/queue'
     | '/api/files/read'
     | '/api/public/catch/$'
   fileRoutesById: FileRoutesById
@@ -70,6 +90,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiIngestRoute: typeof ApiIngestRoute
+  ApiQueueRoute: typeof ApiQueueRoute
   ApiFilesReadRoute: typeof ApiFilesReadRoute
   ApiPublicCatchSplatRoute: typeof ApiPublicCatchSplatRoute
 }
@@ -81,6 +102,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/queue': {
+      id: '/api/queue'
+      path: '/api/queue'
+      fullPath: '/api/queue'
+      preLoaderRoute: typeof ApiQueueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/ingest': {
@@ -110,6 +138,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiIngestRoute: ApiIngestRoute,
+  ApiQueueRoute: ApiQueueRoute,
   ApiFilesReadRoute: ApiFilesReadRoute,
   ApiPublicCatchSplatRoute: ApiPublicCatchSplatRoute,
 }
