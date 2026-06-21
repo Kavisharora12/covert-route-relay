@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { addEntry, getEntries, clearEntries } from "@/lib/ingest-store";
+import { addEntry, getEntries, deleteEntry, clearEntries } from "@/lib/ingest-store";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -57,7 +57,13 @@ export const Route = createFileRoute("/api/ingest")({
         return json({ success: true, id: entry.id, receivedAt: entry.receivedAt });
       },
 
-      DELETE: async () => {
+      DELETE: async ({ request }) => {
+        const url = new URL(request.url);
+        const id = url.searchParams.get("id");
+        if (id) {
+          const ok = deleteEntry(id);
+          return json({ success: ok });
+        }
         clearEntries();
         return json({ success: true });
       },

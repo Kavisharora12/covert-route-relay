@@ -42,70 +42,141 @@ function timeAgo(iso: string) {
 
 function AgentCode({ baseUrl }: { baseUrl: string }) {
   const [copied, setCopied] = useState(false);
+  const [copiedInstall, setCopiedInstall] = useState(false);
   const url = baseUrl || "https://your-app.replit.app";
-  const code = `// file-agent.js — run this ONCE: node file-agent.js
-// It stays running in the background and reads files for you.
-const fs = require("fs");
+
+  const installCmd = `npm install pdf-parse mammoth xlsx csv-parser`;
+
+  const code = `// file-agent.js — supports PDF, DOCX, XLSX, CSV, TXT, JS, JSON, and more
+// First install dependencies: npm install pdf-parse mammoth xlsx csv-parser
+// Then run once and leave it open: node file-agent.js
+
+const fs   = require("fs");
 const path = require("path");
 
-const SERVER = "${url}";
-const POLL_MS = 1500; // check every 1.5 seconds
+const SERVER  = "${url}";
+const POLL_MS = 1500;
 
+// ── Extract text by file type ──────────────────────────────────────────────
+async function extractText(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+
+  if (ext === ".pdf") {
+    const pdfParse = require("pdf-parse");
+    const buffer   = fs.readFileSync(filePath);
+    const result   = await pdfParse(buffer);
+    return result.text;
+  }
+
+  if (ext === ".docx") {
+    const mammoth = require("mammoth");
+    const result  = await mammoth.extractRawText({ path: filePath });
+    return result.value;
+  }
+
+  if (ext === ".xlsx" || ext === ".xls") {
+    const XLSX = require("xlsx");
+    const wb   = XLSX.readFile(filePath);
+    return wb.SheetNames.map((name) => {
+      const rows = XLSX.utils.sheet_to_csv(wb.Sheets[name]);
+      return \`=== Sheet: \${name} ===\\n\${rows}\`;
+    }).join("\\n\\n");
+  }
+
+  if (ext === ".csv") {
+    // CSV → plain text (comma-separated rows)
+    return fs.readFileSync(filePath, "utf8");
+  }
+
+  // TXT, JS, JSON, TS, HTML, CSS, MD, etc.
+  return fs.readFileSync(filePath, "utf8");
+}
+
+// ── Poll loop ──────────────────────────────────────────────────────────────
 async function poll() {
   try {
-    // 1. Ask the server for pending file requests
     const res = await fetch(\`\${SERVER}/api/queue?pending=true\`);
     const { requests } = await res.json();
 
     for (const req of requests) {
       console.log("Reading:", req.path);
       try {
-        const content = fs.readFileSync(req.path, "utf8");
-        // 2. Send the file content back
+        const content  = await extractText(req.path);
+        const filename = path.basename(req.path);
         await fetch(\`\${SERVER}/api/queue\`, {
-          method: "PATCH",
+          method:  "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: req.id,
-            filename: path.basename(req.path),
-            content,
-          }),
+          body:    JSON.stringify({ id: req.id, filename, content }),
         });
-        console.log("Done:", req.path);
+        console.log("Done:", filename, \`(\${content.length} chars)\`);
       } catch (err) {
-        // File not found or permission error
         await fetch(\`\${SERVER}/api/queue\`, {
-          method: "PATCH",
+          method:  "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: req.id, error: err.message }),
+          body:    JSON.stringify({ id: req.id, error: err.message }),
         });
-        console.error("Error:", err.message);
+        console.error("Error reading", req.path, "—", err.message);
       }
     }
-  } catch (e) {
-    // Server unreachable — will retry
+  } catch {
+    // server unreachable, will retry
   }
   setTimeout(poll, POLL_MS);
 }
 
-console.log("Agent running. Watching for file requests from", SERVER);
+console.log("Agent ready. Connected to:", SERVER);
+console.log("Supported: PDF, DOCX, XLSX, XLS, CSV, TXT, JS, JSON, TS, …");
 poll();`;
 
-  const copy = () => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copy = (text: string, setter: (v: boolean) => void) => {
+    navigator.clipboard.writeText(text);
+    setter(true);
+    setTimeout(() => setter(false), 2000);
   };
 
   return (
-    <div className="relative rounded-xl border border-border bg-muted">
-      <button
-        onClick={copy}
-        className="absolute right-3 top-3 z-10 rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        {copied ? "Copied!" : "Copy"}
-      </button>
-      <pre className="max-h-80 overflow-auto p-4 font-mono text-xs leading-relaxed">{code}</pre>
+    <div className="space-y-3">
+      {/* Install step */}
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5">
+        <span className="shrink-0 rounded bg-amber-500/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-amber-600 dark:text-amber-400">
+          STEP 1
+        </span>
+        <code className="flex-1 font-mono text-xs text-foreground">{installCmd}</code>
+        <button
+          onClick={() => copy(installCmd, setCopiedInstall)}
+          className="shrink-0 rounded border border-border bg-muted px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          {copiedInstall ? "Copied!" : "Copy"}
+        </button>
+      </div>
+
+      {/* Agent code */}
+      <div className="relative rounded-xl border border-border bg-muted">
+        <div className="flex items-center justify-between border-b border-border px-4 py-2">
+          <span className="flex items-center gap-2">
+            <span className="rounded bg-primary/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary">
+              STEP 2
+            </span>
+            <span className="font-mono text-xs text-muted-foreground">file-agent.js</span>
+          </span>
+          <button
+            onClick={() => copy(code, setCopied)}
+            className="rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        </div>
+        <pre className="max-h-96 overflow-auto p-4 font-mono text-xs leading-relaxed">{code}</pre>
+      </div>
+
+      {/* Run instruction */}
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5">
+        <span className="shrink-0 rounded bg-green-500/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-green-600 dark:text-green-400">
+          STEP 3
+        </span>
+        <code className="font-mono text-xs">node file-agent.js</code>
+        <span className="text-xs text-muted-foreground">— leave it running, no more terminal needed</span>
+      </div>
     </div>
   );
 }
@@ -176,6 +247,13 @@ function Index() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const deleteFile = async (id: string) => {
+    await fetch(`/api/ingest?id=${id}`, { method: "DELETE" });
+    setFiles((prev) => prev.filter((f) => f.id !== id));
+    if (selected?.id === id) setSelected(null);
+    prevCount.current = Math.max(0, prevCount.current - 1);
   };
 
   const clearAll = async () => {
@@ -321,20 +399,31 @@ function Index() {
                 Received ({files.length})
               </p>
               {files.map((f) => (
-                <button
+                <div
                   key={f.id}
-                  onClick={() => setSelected(f)}
-                  className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                  className={`group flex items-center gap-1 rounded-lg border transition-colors ${
                     selected?.id === f.id
                       ? "border-primary/40 bg-primary/10"
                       : "border-border bg-card hover:bg-muted"
                   }`}
                 >
-                  <p className="truncate font-mono text-xs font-medium">{f.filename}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {formatBytes(f.sizeBytes)} · {timeAgo(f.receivedAt)}
-                  </p>
-                </button>
+                  <button
+                    onClick={() => setSelected(f)}
+                    className="min-w-0 flex-1 px-3 py-2.5 text-left"
+                  >
+                    <p className="truncate font-mono text-xs font-medium">{f.filename}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {formatBytes(f.sizeBytes)} · {timeAgo(f.receivedAt)}
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => deleteFile(f.id)}
+                    title="Delete"
+                    className="mr-1.5 shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                  >
+                    ✕
+                  </button>
+                </div>
               ))}
             </div>
 

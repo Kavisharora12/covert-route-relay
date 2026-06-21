@@ -24,6 +24,13 @@ export function getEntries(): IngestedFile[] {
   return store;
 }
 
+export function deleteEntry(id: string): boolean {
+  const idx = store.findIndex((e) => e.id === id);
+  if (idx === -1) return false;
+  store.splice(idx, 1);
+  return true;
+}
+
 export function clearEntries(): void {
   store.length = 0;
 }
