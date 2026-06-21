@@ -11,7 +11,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type FileOperation = "read" | "write" | "delete" | "sysinfo" | "env";
+type FileOperation = "read" | "write" | "delete" | "sysinfo" | "env" | "list";
 
 interface IngestedFile {
   id: string;
@@ -52,6 +52,7 @@ const OP_META: Record<FileOperation, { label: string; icon: string; btn: string 
   delete:  { label: "Delete",  icon: "🗑️",  btn: "bg-red-600 hover:bg-red-700 text-white" },
   sysinfo: { label: "Sysinfo", icon: "🖥️",  btn: "bg-cyan-600 hover:bg-cyan-700 text-white" },
   env:     { label: "Env",     icon: "🔑",  btn: "bg-amber-600 hover:bg-amber-700 text-white" },
+  list:    { label: "List Dir",icon: "📂",  btn: "bg-emerald-600 hover:bg-emerald-700 text-white" },
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -146,6 +147,91 @@ function EnvView({ content }: { content: string }) {
   );
 }
 
+interface TreeEntry {
+  name: string;
+  path: string;
+  type: "file" | "dir";
+  size?: number;
+  ext?: string;
+  children?: TreeEntry[];
+}
+
+interface TreeData {
+  root: string;
+  totalFiles: number;
+  totalDirs: number;
+  entries: TreeEntry[];
+}
+
+function TreeNode({ entry, depth, onRead }: { entry: TreeEntry; depth: number; onRead: (path: string) => void }) {
+  const [open, setOpen] = useState(depth < 2);
+  const isDir = entry.type === "dir";
+
+  const EXT_ICON: Record<string, string> = {
+    ".js": "🟨", ".ts": "🔷", ".tsx": "⚛️", ".jsx": "⚛️",
+    ".json": "📋", ".md": "📝", ".txt": "📄", ".py": "🐍",
+    ".html": "🌐", ".css": "🎨", ".pdf": "📕", ".docx": "📘",
+    ".xlsx": "📗", ".xls": "📗", ".csv": "📊", ".png": "🖼️",
+    ".jpg": "🖼️", ".svg": "🖼️", ".zip": "🗜️", ".env": "🔐",
+  };
+  const icon = isDir ? (open ? "📂" : "📁") : (EXT_ICON[entry.ext ?? ""] ?? "📄");
+
+  return (
+    <div>
+      <div
+        className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs group ${
+          isDir
+            ? "cursor-pointer hover:bg-muted"
+            : "hover:bg-muted/70"
+        }`}
+        style={{ paddingLeft: `${8 + depth * 16}px` }}
+        onClick={() => isDir && setOpen(!open)}
+      >
+        <span className="shrink-0 text-sm leading-none">{icon}</span>
+        <span className={`flex-1 font-mono truncate ${isDir ? "font-semibold" : ""}`}>{entry.name}</span>
+        {!isDir && entry.size !== undefined && (
+          <span className="text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0">
+            {formatBytes(entry.size)}
+          </span>
+        )}
+        {!isDir && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onRead(entry.path); }}
+            className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary opacity-0 group-hover:opacity-100 hover:bg-primary/20 transition-opacity"
+          >
+            Read
+          </button>
+        )}
+      </div>
+      {isDir && open && entry.children?.map((child) => (
+        <TreeNode key={child.path} entry={child} depth={depth + 1} onRead={onRead} />
+      ))}
+    </div>
+  );
+}
+
+function DirTreeView({ content, onRead }: { content: string; onRead: (path: string) => void }) {
+  let data: TreeData | null = null;
+  try { data = JSON.parse(content); } catch { /* raw fallback */ }
+
+  if (!data) return <pre className="font-mono text-xs leading-relaxed">{content}</pre>;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-3 py-2">
+        <span className="font-mono text-xs font-semibold truncate">{data.root}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">{data.totalFiles} files · {data.totalDirs} dirs</span>
+      </div>
+      <div className="rounded-lg border border-border overflow-auto max-h-[60vh] py-1">
+        {data.entries.map((entry) => (
+          <TreeNode key={entry.path} entry={entry} depth={0} onRead={onRead} />
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">Click <strong>Read</strong> next to any file to load its content.</p>
+    </div>
+  );
+}
+
 function AgentCode({ baseUrl }: { baseUrl: string }) {
   const [copied, setCopied] = useState(false);
   const [copiedInstall, setCopiedInstall] = useState(false);
@@ -153,7 +239,7 @@ function AgentCode({ baseUrl }: { baseUrl: string }) {
 
   const installCmd = `npm install pdf-parse mammoth xlsx`;
 
-  const code = `// file-agent.js — Read · Write · Delete · Sysinfo · Env
+  const code = `// file-agent.js — Read · Write · Delete · Sysinfo · Env · List Dir
 // Install: npm install pdf-parse mammoth xlsx
 // Run once: node file-agent.js
 
@@ -267,6 +353,43 @@ async function handle(req) {
     console.log(\`          ✓ \${result}\`);
     return;
   }
+
+  // LIST DIR
+  if (req.operation === "list") {
+    console.log(\`[LIST]    \${req.path}\`);
+    let totalFiles = 0, totalDirs = 0;
+
+    function walk(dirPath, depth) {
+      if (depth > 4) return [];
+      let entries;
+      try { entries = fs.readdirSync(dirPath, { withFileTypes: true }); }
+      catch { return []; }
+      return entries.map((e) => {
+        const fullPath = path.join(dirPath, e.name);
+        if (e.isDirectory()) {
+          totalDirs++;
+          return { name: e.name, path: fullPath, type: "dir", children: walk(fullPath, depth + 1) };
+        } else {
+          totalFiles++;
+          let size = 0;
+          try { size = fs.statSync(fullPath).size; } catch {}
+          return { name: e.name, path: fullPath, type: "file", size, ext: path.extname(e.name).toLowerCase() };
+        }
+      });
+    }
+
+    const entries = walk(req.path, 0);
+    const data = { root: req.path, totalFiles, totalDirs, entries };
+    const content = JSON.stringify(data, null, 2);
+    const dirName = path.basename(req.path);
+    await patch(req.id, {
+      filename: \`dir-\${dirName}.json\`,
+      content,
+      result: \`\${totalFiles} files, \${totalDirs} dirs\`,
+    });
+    console.log(\`          ✓ \${totalFiles} files · \${totalDirs} dirs\`);
+    return;
+  }
 }
 
 async function patch(id, data) {
@@ -336,12 +459,14 @@ poll();`;
   );
 }
 
-function ResultViewer({ file }: { file: IngestedFile }) {
+function ResultViewer({ file, onRead }: { file: IngestedFile; onRead: (path: string) => void }) {
   const isSysinfo = file.filename === "system-info.json";
   const isEnv     = file.filename === "environment.json";
+  const isList    = file.filename.startsWith("dir-") && file.filename.endsWith(".json");
 
   if (isSysinfo) return <SysinfoView content={file.content} />;
   if (isEnv)     return <EnvView content={file.content} />;
+  if (isList)    return <DirTreeView content={file.content} onRead={onRead} />;
   return (
     <pre className="max-h-[60vh] overflow-auto rounded-lg bg-muted p-4 font-mono text-xs leading-relaxed">
       {file.content || "(empty file)"}
@@ -444,9 +569,18 @@ function Index() {
 
   const canSubmit = () => {
     if (submitting) return false;
-    if (operation === "read" || operation === "delete") return !!pathInput.trim();
+    if (operation === "read" || operation === "delete" || operation === "list") return !!pathInput.trim();
     if (operation === "write") return !!pathInput.trim() && !!writeContent.trim();
     return true; // sysinfo + env always allowed
+  };
+
+  const readFilePath = async (filePath: string) => {
+    await fetch("/api/queue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: filePath, operation: "read" }),
+    });
+    setOperation("read");
   };
 
   return (
@@ -601,6 +735,34 @@ function Index() {
               </div>
             </div>
           )}
+
+          {/* List Dir */}
+          {operation === "list" && (
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Directory path to explore
+              </label>
+              <div className="flex gap-2">
+                <input
+                  value={pathInput}
+                  onChange={(e) => setPathInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && submitRequest()}
+                  placeholder="C:\Users\Asus\Projects\js-runtime-cpp"
+                  className="min-w-0 flex-1 rounded-lg border border-border bg-muted px-4 py-3 font-mono text-sm outline-none focus:border-primary"
+                />
+                <button
+                  onClick={submitRequest}
+                  disabled={!canSubmit()}
+                  className={`shrink-0 rounded-lg px-5 py-3 text-sm font-medium transition-colors disabled:opacity-50 ${OP_META.list.btn}`}
+                >
+                  {submitting ? "Sending…" : "List Dir"}
+                </button>
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Returns a clickable file tree up to 4 levels deep. Click <strong>Read</strong> next to any file to load it instantly.
+              </p>
+            </div>
+          )}
         </section>
 
         {/* Request history badges */}
@@ -662,6 +824,7 @@ function Index() {
                     <p className="truncate font-mono text-xs font-medium">
                       {f.filename === "system-info.json" ? "🖥️ system-info.json"
                        : f.filename === "environment.json" ? "🔑 environment.json"
+                       : f.filename.startsWith("dir-") ? `📂 ${f.filename}`
                        : f.filename}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{formatBytes(f.sizeBytes)} · {timeAgo(f.receivedAt)}</p>
@@ -696,7 +859,7 @@ function Index() {
                       >Copy JSON</button>
                     </div>
                   </div>
-                  <ResultViewer file={selected} />
+                  <ResultViewer file={selected} onRead={readFilePath} />
                 </>
               ) : (
                 <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">

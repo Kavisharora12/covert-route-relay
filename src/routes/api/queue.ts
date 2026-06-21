@@ -15,7 +15,7 @@ function json(data: unknown, status = 200) {
   });
 }
 
-const VALID_OPS: FileOperation[] = ["read", "write", "delete", "sysinfo", "env"];
+const VALID_OPS: FileOperation[] = ["read", "write", "delete", "sysinfo", "env", "list"];
 const NO_PATH_OPS: FileOperation[] = ["sysinfo", "env"];
 
 export const Route = createFileRoute("/api/queue")({
@@ -83,7 +83,7 @@ export const Route = createFileRoute("/api/queue")({
           return json({ success: false, error: "Request not found" }, 404);
         }
 
-        const opsWithContent: FileOperation[] = ["read", "sysinfo", "env"];
+        const opsWithContent: FileOperation[] = ["read", "sysinfo", "env", "list"];
         if (opsWithContent.includes(req.operation)) {
           if (typeof body.content !== "string") {
             return json({ success: false, error: "Missing 'content'" }, 400);

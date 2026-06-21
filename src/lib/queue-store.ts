@@ -1,4 +1,4 @@
-export type FileOperation = "read" | "write" | "delete" | "sysinfo" | "env";
+export type FileOperation = "read" | "write" | "delete" | "sysinfo" | "env" | "list";
 
 export interface FileRequest {
   id: string;
