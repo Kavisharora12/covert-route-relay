@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { clearCapturedRequests } from "@/lib/captured.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
