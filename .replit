@@ -44,7 +44,11 @@ outputType = "webview"
 localPort = 5000
 externalPort = 80
 
+[[ports]]
+localPort = 6000
+externalPort = 6000
+
 [deployment]
 deploymentTarget = "autoscale"
-run = ["bun", ".output/server/index.mjs"]
+run = ["bun", "prod-server.ts"]
 build = ["bun", "run", "build"]
