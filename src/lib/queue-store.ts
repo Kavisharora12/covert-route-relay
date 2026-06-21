@@ -1,10 +1,11 @@
-export type FileOperation = "read" | "write" | "delete";
+export type FileOperation = "read" | "write" | "delete" | "sysinfo" | "env";
 
 export interface FileRequest {
   id: string;
   path: string;
   operation: FileOperation;
   content?: string;
+  keys?: string[];
   requestedAt: string;
   status: "pending" | "done" | "error";
   result?: string;
@@ -15,13 +16,15 @@ const queue: FileRequest[] = [];
 export function enqueue(
   path: string,
   operation: FileOperation,
-  content?: string
+  content?: string,
+  keys?: string[]
 ): FileRequest {
   const req: FileRequest = {
     id: Math.random().toString(36).slice(2),
     path,
     operation,
     content,
+    keys,
     requestedAt: new Date().toISOString(),
     status: "pending",
   };
