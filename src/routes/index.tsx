@@ -62,14 +62,20 @@ function prettyBody(body: string | null, contentType: string | null) {
 
 function Index() {
   const [requests, setRequests] = useState<CapturedRequest[]>([]);
-  const [endpoint, setEndpoint] = useState("");
+  const [origin, setOrigin] = useState("");
+  const [path, setPath] = useState("inbox");
   const [copied, setCopied] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const clearAllFn = useServerFn(clearCapturedRequests);
 
   useEffect(() => {
-    setEndpoint(`${window.location.origin}/api/public/catch/inbox`);
+    setOrigin(window.location.origin);
   }, []);
+
+  const cleanPath = path.replace(/^\/+/, "").trim();
+  const endpoint = origin
+    ? `${origin}/api/public/catch/${cleanPath}`
+    : "";
 
   useEffect(() => {
     let active = true;
@@ -117,6 +123,11 @@ function Index() {
 
   const selected = requests.find((r) => r.id === selectedId) ?? null;
 
+  const targetPath = "/" + cleanPath;
+  const visibleRequests = cleanPath
+    ? requests.filter((r) => r.path === targetPath)
+    : requests;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border bg-card/50">
@@ -131,9 +142,17 @@ function Index() {
           </p>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <code className="flex-1 truncate rounded-lg border border-border bg-muted px-4 py-3 font-mono text-sm">
-              {endpoint || "loading…"}
-            </code>
+            <div className="flex flex-1 items-center overflow-hidden rounded-lg border border-border bg-muted font-mono text-sm">
+              <span className="truncate px-4 py-3 text-muted-foreground">
+                {origin ? `${origin}/api/public/catch/` : "loading…"}
+              </span>
+              <input
+                value={path}
+                onChange={(e) => setPath(e.target.value)}
+                placeholder="your-path"
+                className="min-w-0 flex-1 bg-transparent py-3 pr-4 font-mono text-sm text-foreground outline-none"
+              />
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={copyEndpoint}
@@ -150,7 +169,8 @@ function Index() {
             </div>
           </div>
           <p className="mt-3 font-mono text-xs text-muted-foreground">
-            Tip: any sub-path works, e.g. <span className="text-foreground">/api/public/catch/login</span>
+            Type a path above, point your code at the full URL, and requests to{" "}
+            <span className="text-foreground">{targetPath}</span> appear below.
           </p>
         </div>
       </header>
@@ -158,15 +178,15 @@ function Index() {
       <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-6 py-8 lg:grid-cols-[320px_1fr]">
         <section className="space-y-2">
           <h2 className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Captured ({requests.length})
+            Captured ({visibleRequests.length})
           </h2>
-          {requests.length === 0 && (
+          {visibleRequests.length === 0 && (
             <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-              Waiting for the first request…
+              Waiting for the first request to {targetPath}…
             </p>
           )}
           <ul className="space-y-2">
-            {requests.map((r) => (
+            {visibleRequests.map((r) => (
               <li key={r.id}>
                 <button
                   onClick={() => setSelectedId(r.id)}
