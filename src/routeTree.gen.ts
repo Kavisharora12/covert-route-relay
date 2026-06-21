@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiIngestRouteImport } from './routes/api/ingest'
 import { Route as ApiFilesReadRouteImport } from './routes/api/files/read'
 import { Route as ApiPublicCatchSplatRouteImport } from './routes/api/public/catch.$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiIngestRoute = ApiIngestRouteImport.update({
+  id: '/api/ingest',
+  path: '/api/ingest',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiFilesReadRoute = ApiFilesReadRouteImport.update({
@@ -31,30 +37,39 @@ const ApiPublicCatchSplatRoute = ApiPublicCatchSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/ingest': typeof ApiIngestRoute
   '/api/files/read': typeof ApiFilesReadRoute
   '/api/public/catch/$': typeof ApiPublicCatchSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/ingest': typeof ApiIngestRoute
   '/api/files/read': typeof ApiFilesReadRoute
   '/api/public/catch/$': typeof ApiPublicCatchSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/ingest': typeof ApiIngestRoute
   '/api/files/read': typeof ApiFilesReadRoute
   '/api/public/catch/$': typeof ApiPublicCatchSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/files/read' | '/api/public/catch/$'
+  fullPaths: '/' | '/api/ingest' | '/api/files/read' | '/api/public/catch/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/files/read' | '/api/public/catch/$'
-  id: '__root__' | '/' | '/api/files/read' | '/api/public/catch/$'
+  to: '/' | '/api/ingest' | '/api/files/read' | '/api/public/catch/$'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/ingest'
+    | '/api/files/read'
+    | '/api/public/catch/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiIngestRoute: typeof ApiIngestRoute
   ApiFilesReadRoute: typeof ApiFilesReadRoute
   ApiPublicCatchSplatRoute: typeof ApiPublicCatchSplatRoute
 }
@@ -66,6 +81,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ingest': {
+      id: '/api/ingest'
+      path: '/api/ingest'
+      fullPath: '/api/ingest'
+      preLoaderRoute: typeof ApiIngestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/files/read': {
@@ -87,6 +109,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiIngestRoute: ApiIngestRoute,
   ApiFilesReadRoute: ApiFilesReadRoute,
   ApiPublicCatchSplatRoute: ApiPublicCatchSplatRoute,
 }
