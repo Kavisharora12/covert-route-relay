@@ -65,6 +65,7 @@ function Index() {
   const [endpoint, setEndpoint] = useState("");
   const [copied, setCopied] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const clearAllFn = useServerFn(clearCapturedRequests);
 
   useEffect(() => {
     setEndpoint(`${window.location.origin}/api/public/catch/inbox`);
@@ -109,7 +110,7 @@ function Index() {
   };
 
   const clearAll = async () => {
-    await db.from("captured_requests").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await clearAllFn();
     setRequests([]);
     setSelectedId(null);
   };
