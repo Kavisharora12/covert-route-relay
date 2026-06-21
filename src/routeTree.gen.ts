@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiFilesReadRouteImport } from './routes/api/files/read'
 import { Route as ApiPublicCatchSplatRouteImport } from './routes/api/public/catch.$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFilesReadRoute = ApiFilesReadRouteImport.update({
+  id: '/api/files/read',
+  path: '/api/files/read',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicCatchSplatRoute = ApiPublicCatchSplatRouteImport.update({
@@ -25,27 +31,31 @@ const ApiPublicCatchSplatRoute = ApiPublicCatchSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/files/read': typeof ApiFilesReadRoute
   '/api/public/catch/$': typeof ApiPublicCatchSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/files/read': typeof ApiFilesReadRoute
   '/api/public/catch/$': typeof ApiPublicCatchSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/files/read': typeof ApiFilesReadRoute
   '/api/public/catch/$': typeof ApiPublicCatchSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/catch/$'
+  fullPaths: '/' | '/api/files/read' | '/api/public/catch/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/catch/$'
-  id: '__root__' | '/' | '/api/public/catch/$'
+  to: '/' | '/api/files/read' | '/api/public/catch/$'
+  id: '__root__' | '/' | '/api/files/read' | '/api/public/catch/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiFilesReadRoute: typeof ApiFilesReadRoute
   ApiPublicCatchSplatRoute: typeof ApiPublicCatchSplatRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/files/read': {
+      id: '/api/files/read'
+      path: '/api/files/read'
+      fullPath: '/api/files/read'
+      preLoaderRoute: typeof ApiFilesReadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/catch/$': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiFilesReadRoute: ApiFilesReadRoute,
   ApiPublicCatchSplatRoute: ApiPublicCatchSplatRoute,
 }
 export const routeTree = rootRouteImport

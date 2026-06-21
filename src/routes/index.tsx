@@ -22,7 +22,7 @@ export const Route = createFileRoute("/")({
 });
 
 const BACKEND_KEY = "backend_base_url";
-const DEFAULT_BACKEND = "http://localhost:3000";
+const DEFAULT_BACKEND = "";
 
 interface ReadResponse {
   success: boolean;
@@ -99,12 +99,12 @@ function Index() {
             <input
               value={backend}
               onChange={(e) => saveBackend(e.target.value)}
-              placeholder="https://your-tunnel.ngrok-free.app"
+              placeholder="Leave empty to use this app's built-in backend"
               className="w-full rounded-lg border border-border bg-muted px-4 py-3 font-mono text-sm outline-none focus:border-primary"
             />
             <span className="mt-1 block text-xs text-muted-foreground">
-              Use a public URL (ngrok or a deployed server) — a deployed site can't reach
-              localhost.
+              Leave empty to read files from this server. Or point to an external backend (must
+              have CORS enabled).
             </span>
           </label>
 
